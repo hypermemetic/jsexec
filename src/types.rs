@@ -37,6 +37,10 @@ impl std::fmt::Display for ScriptId {
     }
 }
 
+/// Unique identifier for a Lambda function (re-exported from lambda module)
+#[cfg(feature = "lambda")]
+pub use crate::lambda::types::FunctionId;
+
 /// Unique identifier for a single execution
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]

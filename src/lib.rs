@@ -27,6 +27,7 @@
 pub mod activation;
 pub mod bundler;
 pub mod import_transform;
+pub mod lambda;
 pub mod runner;
 pub mod serde_helpers;
 pub mod types;
