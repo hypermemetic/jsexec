@@ -96,6 +96,7 @@ fn transform_import_statement(import_spec: &str, module_path: &str) -> String {
     )
 }
 
+#[allow(dead_code)]
 fn sanitize_module_name(module_path: &str) -> String {
     // Convert 'lodash' -> 'lodash'
     // Convert '@types/node' -> 'types_node'
