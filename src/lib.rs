@@ -15,7 +15,7 @@
 //!
 //! ```rust,no_run
 //! use jsexec::{JsExec, JsExecConfig};
-//! use hub_core::plexus::Plexus;
+//! use plexus_core::plexus::Plexus;
 //! use std::sync::Arc;
 //!
 //! # async fn example() {

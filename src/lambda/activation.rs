@@ -1,7 +1,7 @@
 //! LambdaExec activation - AWS Lambda-style function execution
 //!
 //! This module provides the main LambdaExec activation that integrates with
-//! the Plexus hub system using hub_macro.
+//! the Plexus hub system using plexus_macros.
 
 use crate::lambda::{
     types::{
@@ -15,14 +15,14 @@ use futures::Stream;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-// Re-export hub_core types needed by hub_macro generated code
+// Re-export plexus_core types needed by plexus_macros generated code
 #[allow(unused_imports)]
-use hub_core::plexus::{
+use plexus_core::plexus::{
     Activation, ChildSummary, MethodSchema, PlexusError, PlexusStream, PluginSchema, SchemaResult,
     wrap_stream,
 };
 #[allow(unused_imports)]
-use hub_core::serde_helpers;
+use plexus_core::serde_helpers;
 
 // =============================================================================
 // LambdaExec Activation
@@ -41,16 +41,16 @@ impl LambdaExec {
     }
 }
 
-/// Hub-macro generates all the boilerplate for this impl block
-#[hub_macro::hub_methods(
+/// Plexus-macros generates all the boilerplate for this impl block
+#[plexus_macros::hub_methods(
     namespace = "lambda",
     version = "1.0.0",
     description = "AWS Lambda-style function execution",
-    crate_path = "hub_core"
+    crate_path = "plexus_core"
 )]
 impl LambdaExec {
     /// Create a new Lambda function
-    #[hub_macro::hub_method(
+    #[plexus_macros::hub_method(
         description = "Create a new Lambda function",
         params(
             name = "Function name (must be unique)",
@@ -66,8 +66,8 @@ impl LambdaExec {
         &self,
         name: String,
         code: String,
-        #[hub_macro::arg(default = "handler")] handler: String,
-        #[hub_macro::arg(default = "javascript")] runtime: String,
+        #[plexus_macros::arg(default = "handler")] handler: String,
+        #[plexus_macros::arg(default = "javascript")] runtime: String,
         description: Option<String>,
         timeout_ms: Option<u64>,
         environment: Option<HashMap<String, String>>,
@@ -100,7 +100,7 @@ impl LambdaExec {
     }
 
     /// Invoke a Lambda function
-    #[hub_macro::hub_method(
+    #[plexus_macros::hub_method(
         description = "Invoke a Lambda function",
         params(
             function_name = "Function name or name:alias (e.g., 'my-func' or 'my-func:prod')",
@@ -112,7 +112,7 @@ impl LambdaExec {
         &self,
         function_name: String,
         event: serde_json::Value,
-        #[hub_macro::arg(default = "RequestResponse")] invocation_type: String,
+        #[plexus_macros::arg(default = "RequestResponse")] invocation_type: String,
     ) -> impl Stream<Item = LambdaEvent> + Send + 'static {
         let system = self.system.clone();
 
@@ -217,7 +217,7 @@ impl LambdaExec {
     }
 
     /// Update function code
-    #[hub_macro::hub_method(
+    #[plexus_macros::hub_method(
         description = "Update function code",
         params(
             function_name = "Function name",
@@ -263,7 +263,7 @@ impl LambdaExec {
     }
 
     /// Publish a new version
-    #[hub_macro::hub_method(
+    #[plexus_macros::hub_method(
         description = "Publish a new immutable version",
         params(function_name = "Function name")
     )]
@@ -300,7 +300,7 @@ impl LambdaExec {
     }
 
     /// Create or update an alias
-    #[hub_macro::hub_method(
+    #[plexus_macros::hub_method(
         description = "Create or update a function alias",
         params(
             function_name = "Function name",
@@ -352,7 +352,7 @@ impl LambdaExec {
     }
 
     /// List all functions
-    #[hub_macro::hub_method(description = "List all Lambda functions")]
+    #[plexus_macros::hub_method(description = "List all Lambda functions")]
     async fn list_functions(&self) -> impl Stream<Item = FunctionMetadata> + Send + 'static {
         let system = self.system.clone();
 
@@ -372,7 +372,7 @@ impl LambdaExec {
     }
 
     /// Get function details
-    #[hub_macro::hub_method(
+    #[plexus_macros::hub_method(
         description = "Get function details",
         params(function_name = "Function name")
     )]
@@ -398,7 +398,7 @@ impl LambdaExec {
     }
 
     /// Delete a function
-    #[hub_macro::hub_method(
+    #[plexus_macros::hub_method(
         description = "Delete a Lambda function",
         params(function_name = "Function name")
     )]
@@ -438,7 +438,7 @@ impl LambdaExec {
     }
 
     /// List versions for a function
-    #[hub_macro::hub_method(
+    #[plexus_macros::hub_method(
         description = "List all versions of a function",
         params(function_name = "Function name")
     )]
@@ -475,7 +475,7 @@ impl LambdaExec {
     }
 
     /// Get function metrics
-    #[hub_macro::hub_method(
+    #[plexus_macros::hub_method(
         description = "Get invocation metrics for a function",
         params(
             function_name = "Function name",

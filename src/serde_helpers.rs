@@ -1,3 +1,3 @@
-//! Re-export of hub_core serde helpers for macro-generated code
+//! Re-export of plexus_core serde helpers for macro-generated code
 
-pub use hub_core::serde_helpers::*;
+pub use plexus_core::serde_helpers::*;

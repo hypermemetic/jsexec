@@ -36,7 +36,7 @@ jsexec/
 │   ├── types.rs         # JsExecEvent, JsExecConfig, etc.
 │   ├── activation.rs    # JsExec with #[hub_methods] macro
 │   ├── runner.rs        # Ephemeral execution (spawn per request)
-│   └── serde_helpers.rs # Re-export for hub_macro
+│   └── serde_helpers.rs # Re-export for plexus_macros
 ├── tests/
 │   └── integration.rs   # 10 integration tests
 └── docs/
