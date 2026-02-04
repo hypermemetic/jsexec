@@ -11,8 +11,8 @@ path = "src/lib.rs"
 
 [dependencies]
 # Hub infrastructure
-hub-core = { path = "../hub-core" }
-hub-macro = { path = "../hub-macro" }
+plexus-core = { path = "../hub-core" }
+plexus-macros = { path = "../hub-macro" }
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
