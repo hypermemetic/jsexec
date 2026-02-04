@@ -79,7 +79,7 @@ impl LambdaSystem {
 
         // Step 3: Create FunctionRegistry
         debug!("Creating FunctionRegistry");
-        let registry = FunctionRegistry::new(pool.clone());
+        let registry = Arc::new(FunctionRegistry::new(&config.database_url).await?);
 
         // Step 4: Create RunnerConfig for HandlerRuntime
         debug!("Creating RunnerConfig");
@@ -112,11 +112,11 @@ impl LambdaSystem {
 
         // Step 8: Create FunctionInvoker
         debug!("Creating FunctionInvoker");
-        let invoker = FunctionInvoker::new(
+        let invoker = Arc::new(FunctionInvoker::new(
             registry.clone(),
             runtime.clone(),
-            versioning.clone(),
-        );
+            metrics.clone(),
+        ));
 
         info!("Lambda system initialization complete");
 

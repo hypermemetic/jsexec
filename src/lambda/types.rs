@@ -1,6 +1,6 @@
 //! Lambda-specific type definitions
 
-use crate::types::{ExecutionId, ExecutionLimits, JsExecEvent, ResourceMetrics};
+use crate::types::{JsExecEvent, ResourceMetrics};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -63,6 +63,14 @@ impl Default for InvocationId {
 impl std::fmt::Display for InvocationId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+impl std::str::FromStr for InvocationId {
+    type Err = uuid::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(Uuid::parse_str(s)?))
     }
 }
 

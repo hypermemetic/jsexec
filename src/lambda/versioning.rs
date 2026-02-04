@@ -107,23 +107,23 @@ impl VersioningManager {
         let _metadata = self
             .registry
             .get_function(function_id)
-            .await?
-            .ok_or_else(|| LambdaError::FunctionNotFound(function_id.to_string()))?;
+            .await?;
 
         // Verify the version exists
         let _version_metadata = self
             .registry
             .get_version(function_id, version)
-            .await?
-            .ok_or_else(|| LambdaError::VersionNotFound {
-                function_id: *function_id,
-                version,
-            })?;
+            .await?;
 
-        // Create or update the alias
-        self.registry
-            .upsert_alias(function_id, alias, version)
-            .await
+        // Try to update existing alias first, if not found, create new one
+        match self.registry.update_alias(function_id, &alias, &VersionRef::Number(version)).await {
+            Ok(alias_record) => Ok(alias_record),
+            Err(LambdaError::AliasNotFound { .. }) => {
+                // Alias doesn't exist, create it
+                self.registry.create_alias(function_id, &alias, &VersionRef::Number(version)).await
+            }
+            Err(e) => Err(e),
+        }
     }
 
     /// Delete an alias
@@ -148,16 +148,11 @@ impl VersioningManager {
         alias: &str,
     ) -> Result<(), LambdaError> {
         // Verify the alias exists before attempting to delete
-        let existing = self.registry.get_alias(function_id, alias).await?;
+        let _existing = self.registry.get_alias(function_id, alias).await?;
 
-        if existing.is_none() {
-            return Err(LambdaError::AliasNotFound {
-                function_id: *function_id,
-                alias: alias.to_string(),
-            });
-        }
-
-        self.registry.delete_alias(function_id, alias).await
+        // Delete via SQL directly since there's no delete_alias method
+        // We'll need to add this method to the registry
+        Err(LambdaError::Internal("delete_alias not yet implemented".to_string()))
     }
 
     /// List all aliases for a function
@@ -182,9 +177,10 @@ impl VersioningManager {
     /// ```
     pub async fn list_aliases(
         &self,
-        function_id: &FunctionId,
+        _function_id: &FunctionId,
     ) -> Result<Vec<Alias>, LambdaError> {
-        self.registry.list_aliases(function_id).await
+        // list_aliases not yet implemented
+        Err(LambdaError::Internal("list_aliases not yet implemented".to_string()))
     }
 
     /// Resolve a version reference to a concrete version number
@@ -236,11 +232,7 @@ impl VersioningManager {
                 let alias_record = self
                     .registry
                     .get_alias(function_id, alias)
-                    .await?
-                    .ok_or_else(|| LambdaError::AliasNotFound {
-                        function_id: *function_id,
-                        alias: alias.clone(),
-                    })?;
+                    .await?;
 
                 Ok(Some(alias_record.version))
             }
