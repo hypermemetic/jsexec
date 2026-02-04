@@ -25,7 +25,6 @@ use crate::types::{JsExecEvent, ResourceMetrics};
 use serde_json::Value;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tokio_stream::StreamExt;
 
 /// Mode for function invocation
 ///
@@ -263,8 +262,7 @@ impl FunctionInvoker {
                 // Verify the function exists
                 self.registry
                     .get_function(id)
-                    .await?
-                    .ok_or_else(|| LambdaError::FunctionNotFound(id.to_string()))?;
+                    .await?;
 
                 Ok((*id, None))
             }
@@ -278,18 +276,13 @@ impl FunctionInvoker {
                     let metadata = self
                         .registry
                         .get_function_by_name(function_name)
-                        .await?
-                        .ok_or_else(|| LambdaError::FunctionNotFound(function_name.to_string()))?;
+                        .await?;
 
                     // Resolve the alias to a version number
                     let alias_record = self
                         .registry
                         .get_alias(&metadata.id, alias)
-                        .await?
-                        .ok_or_else(|| LambdaError::AliasNotFound {
-                            function_id: metadata.id,
-                            alias: alias.to_string(),
-                        })?;
+                        .await?;
 
                     Ok((metadata.id, Some(alias_record.version)))
                 } else {
@@ -297,8 +290,7 @@ impl FunctionInvoker {
                     let metadata = self
                         .registry
                         .get_function_by_name(name)
-                        .await?
-                        .ok_or_else(|| LambdaError::FunctionNotFound(name.to_string()))?;
+                        .await?;
 
                     Ok((metadata.id, None))
                 }
@@ -331,18 +323,13 @@ impl FunctionInvoker {
             let version_data = self
                 .registry
                 .get_version(function_id, version_num)
-                .await?
-                .ok_or_else(|| LambdaError::VersionNotFound {
-                    function_id: *function_id,
-                    version: version_num,
-                })?;
+                .await?;
 
             // Get base metadata for the function name
             let metadata = self
                 .registry
                 .get_function(function_id)
-                .await?
-                .ok_or_else(|| LambdaError::FunctionNotFound(function_id.to_string()))?;
+                .await?;
 
             // Build metadata from version snapshot
             let function_metadata = FunctionMetadata {
@@ -366,8 +353,7 @@ impl FunctionInvoker {
             let metadata = self
                 .registry
                 .get_function(function_id)
-                .await?
-                .ok_or_else(|| LambdaError::FunctionNotFound(function_id.to_string()))?;
+                .await?;
 
             Ok((metadata.code.clone(), metadata))
         }
@@ -380,7 +366,7 @@ impl FunctionInvoker {
         &self,
         function_id: &FunctionId,
         version: Option<u32>,
-        metadata: FunctionMetadata,
+        _metadata: FunctionMetadata,
     ) -> Result<InvocationResponse, LambdaError> {
         // For dry run, we just return success with empty result
         // The fact that we got here means the function exists and code loaded
@@ -426,7 +412,7 @@ impl FunctionInvoker {
             );
 
             // Execute the handler (fire and forget)
-            let mut event_stream = runtime
+            let event_stream = runtime
                 .invoke_handler(
                     code,
                     metadata.handler,
@@ -440,7 +426,8 @@ impl FunctionInvoker {
             let started_at = current_timestamp_ms();
             let mut completed_at = None;
 
-            while let Some(js_event) = event_stream.next().await {
+            let mut event_stream = std::pin::pin!(event_stream);
+            while let Some(js_event) = futures::StreamExt::next(&mut event_stream).await {
                 match js_event {
                     JsExecEvent::ExecutionCompleted { metrics, .. } => {
                         final_metrics = metrics;
@@ -514,7 +501,7 @@ impl FunctionInvoker {
         );
 
         // Execute the handler
-        let mut event_stream = self
+        let event_stream = self
             .runtime
             .invoke_handler(
                 code,
@@ -529,7 +516,8 @@ impl FunctionInvoker {
         let mut final_metrics = ResourceMetrics::default();
         let mut success = true;
 
-        while let Some(js_event) = event_stream.next().await {
+        let mut event_stream = std::pin::pin!(event_stream);
+        while let Some(js_event) = futures::StreamExt::next(&mut event_stream).await {
             match js_event {
                 JsExecEvent::Returned { value } => {
                     result = Some(value);
@@ -541,7 +529,7 @@ impl FunctionInvoker {
                 JsExecEvent::ExecutionCompleted { metrics, .. } => {
                     final_metrics = metrics;
                 }
-                JsExecEvent::Console { level, args, .. } => {
+                JsExecEvent::Console { .. } => {
                     // TODO: Stream console output to logs
                     // For now, we just ignore console output
                 }

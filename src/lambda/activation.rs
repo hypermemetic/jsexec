@@ -66,8 +66,8 @@ impl LambdaExec {
         &self,
         name: String,
         code: String,
-        #[plexus_macros::arg(default = "handler")] handler: String,
-        #[plexus_macros::arg(default = "javascript")] runtime: String,
+        handler: Option<String>,
+        runtime: Option<String>,
         description: Option<String>,
         timeout_ms: Option<u64>,
         environment: Option<HashMap<String, String>>,
@@ -79,8 +79,8 @@ impl LambdaExec {
             let request = CreateFunctionRequest {
                 name: name.clone(),
                 description,
-                runtime,
-                handler,
+                runtime: runtime.unwrap_or_else(|| "javascript".to_string()),
+                handler: handler.unwrap_or_else(|| "handler".to_string()),
                 code,
                 environment: environment.unwrap_or_default(),
                 timeout_ms: timeout_ms.unwrap_or(30000),
@@ -112,13 +112,14 @@ impl LambdaExec {
         &self,
         function_name: String,
         event: serde_json::Value,
-        #[plexus_macros::arg(default = "RequestResponse")] invocation_type: String,
+        invocation_type: Option<String>,
     ) -> impl Stream<Item = LambdaEvent> + Send + 'static {
         let system = self.system.clone();
 
         stream! {
             // Parse invocation type
-            let invocation_type = match invocation_type.parse::<InvocationType>() {
+            let invocation_type_str = invocation_type.unwrap_or_else(|| "RequestResponse".to_string());
+            let _invocation_type = match invocation_type_str.parse::<InvocationType>() {
                 Ok(t) => t,
                 Err(e) => {
                     yield error_to_event(LambdaError::Internal(e));
@@ -156,14 +157,7 @@ impl LambdaExec {
             let code = if let Some(v) = version {
                 // Get code from specific version
                 match system.registry.get_version(&function_id, v).await {
-                    Ok(Some(version_metadata)) => version_metadata.code,
-                    Ok(None) => {
-                        yield error_to_event(LambdaError::VersionNotFound {
-                            function_id,
-                            version: v,
-                        });
-                        return;
-                    }
+                    Ok(version_metadata) => version_metadata.code,
                     Err(e) => {
                         yield error_to_event(e);
                         return;
@@ -234,11 +228,7 @@ impl LambdaExec {
         stream! {
             // Get function by name
             let metadata = match system.registry.get_function_by_name(&function_name).await {
-                Ok(Some(m)) => m,
-                Ok(None) => {
-                    yield error_to_event(LambdaError::FunctionNotFound(function_name));
-                    return;
-                }
+                Ok(m) => m,
                 Err(e) => {
                     yield error_to_event(e);
                     return;
@@ -276,11 +266,7 @@ impl LambdaExec {
         stream! {
             // Get function by name
             let metadata = match system.registry.get_function_by_name(&function_name).await {
-                Ok(Some(m)) => m,
-                Ok(None) => {
-                    yield error_to_event(LambdaError::FunctionNotFound(function_name));
-                    return;
-                }
+                Ok(m) => m,
                 Err(e) => {
                     yield error_to_event(e);
                     return;
@@ -319,11 +305,7 @@ impl LambdaExec {
         stream! {
             // Get function by name
             let metadata = match system.registry.get_function_by_name(&function_name).await {
-                Ok(Some(m)) => m,
-                Ok(None) => {
-                    yield error_to_event(LambdaError::FunctionNotFound(function_name));
-                    return;
-                }
+                Ok(m) => m,
                 Err(e) => {
                     yield error_to_event(e);
                     return;
@@ -384,11 +366,8 @@ impl LambdaExec {
 
         stream! {
             match system.registry.get_function_by_name(&function_name).await {
-                Ok(Some(metadata)) => {
+                Ok(metadata) => {
                     yield metadata;
-                }
-                Ok(None) => {
-                    // Function not found - return empty stream
                 }
                 Err(_e) => {
                     // Error - return empty stream
@@ -411,11 +390,7 @@ impl LambdaExec {
         stream! {
             // Get function by name
             let metadata = match system.registry.get_function_by_name(&function_name).await {
-                Ok(Some(m)) => m,
-                Ok(None) => {
-                    yield error_to_event(LambdaError::FunctionNotFound(function_name.clone()));
-                    return;
-                }
+                Ok(m) => m,
                 Err(e) => {
                     yield error_to_event(e);
                     return;
@@ -451,10 +426,7 @@ impl LambdaExec {
         stream! {
             // Get function by name
             let metadata = match system.registry.get_function_by_name(&function_name).await {
-                Ok(Some(m)) => m,
-                Ok(None) => {
-                    return;
-                }
+                Ok(m) => m,
                 Err(_e) => {
                     return;
                 }
@@ -494,11 +466,7 @@ impl LambdaExec {
         stream! {
             // Get function by name
             let metadata = match system.registry.get_function_by_name(&function_name).await {
-                Ok(Some(m)) => m,
-                Ok(None) => {
-                    yield error_to_event(LambdaError::FunctionNotFound(function_name));
-                    return;
-                }
+                Ok(m) => m,
                 Err(e) => {
                     yield error_to_event(e);
                     return;
@@ -518,9 +486,14 @@ impl LambdaExec {
                     // TODO: Define a proper LambdaEvent::Metrics variant
                     let metrics_json = serde_json::to_string_pretty(&metrics)
                         .unwrap_or_else(|_| "{}".to_string());
+                    let message_value = serde_json::json!(format!("Metrics for {}: {}", function_name, metrics_json));
                     yield LambdaEvent::Execution(crate::types::JsExecEvent::Console {
-                        level: "info".to_string(),
-                        message: format!("Metrics for {}: {}", function_name, metrics_json),
+                        level: crate::types::LogLevel::Info,
+                        args: vec![message_value],
+                        timestamp_ms: std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap()
+                            .as_millis() as u64,
                     });
                 }
                 Err(e) => {
@@ -559,8 +532,7 @@ async fn resolve_function_ref(
             let metadata = system
                 .registry
                 .get_function(id)
-                .await?
-                .ok_or_else(|| LambdaError::FunctionNotFound(id.to_string()))?;
+                .await?;
             Ok((*id, metadata, None))
         }
         FunctionRef::Name(name_with_alias) => {
@@ -577,8 +549,7 @@ async fn resolve_function_ref(
             let metadata = system
                 .registry
                 .get_function_by_name(name)
-                .await?
-                .ok_or_else(|| LambdaError::FunctionNotFound(name.to_string()))?;
+                .await?;
 
             // Resolve alias if provided
             let version = if let Some(alias_name) = alias {
