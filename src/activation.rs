@@ -1,7 +1,7 @@
 //! JsExec activation - JavaScript execution in sandboxed V8 isolates
 //!
 //! This module provides the main JsExec activation that integrates with
-//! the Plexus hub system using hub_macro.
+//! the Plexus hub system using plexus_macros.
 
 use crate::runner::{self, RunnerConfig};
 use crate::types::{
@@ -16,14 +16,14 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
 
-// Re-export hub_core types needed by hub_macro generated code
+// Re-export plexus_core types needed by plexus_macros generated code
 #[allow(unused_imports)]
-use hub_core::plexus::{
+use plexus_core::plexus::{
     Activation, ChildSummary, MethodSchema, PlexusError, PlexusStream, PluginSchema, SchemaResult,
     wrap_stream,
 };
 #[allow(unused_imports)]
-use hub_core::serde_helpers;
+use plexus_core::serde_helpers;
 
 // =============================================================================
 // Script Storage
@@ -220,16 +220,16 @@ impl JsExec {
     }
 }
 
-/// Hub-macro generates all the boilerplate for this impl block
-#[hub_macro::hub_methods(
+/// Plexus-macros generates all the boilerplate for this impl block
+#[plexus_macros::hub_methods(
     namespace = "jsexec",
     version = "1.0.0",
     description = "Execute JavaScript in sandboxed V8 isolates",
-    crate_path = "hub_core"
+    crate_path = "plexus_core"
 )]
 impl JsExec {
     /// Execute JavaScript code and stream results
-    #[hub_macro::hub_method(
+    #[plexus_macros::hub_method(
         description = "Execute JavaScript code with streaming output",
         params(code = "JavaScript source code to execute")
     )]
@@ -279,7 +279,7 @@ impl JsExec {
     }
 
     /// Execute JavaScript code with additional modules loaded by path
-    #[hub_macro::hub_method(
+    #[plexus_macros::hub_method(
         description = "Execute JavaScript code with additional modules loaded from file paths",
         params(
             code = "JavaScript source code to execute",
@@ -340,7 +340,7 @@ impl JsExec {
     }
 
     /// Evaluate a JavaScript expression and return the result
-    #[hub_macro::hub_method(
+    #[plexus_macros::hub_method(
         description = "Evaluate a JavaScript expression and return the result",
         params(expr = "JavaScript expression to evaluate")
     )]
@@ -388,7 +388,7 @@ impl JsExec {
     }
 
     /// Store a script for later execution
-    #[hub_macro::hub_method(
+    #[plexus_macros::hub_method(
         description = "Store a script for later execution",
         params(
             name = "Human-readable name for the script",
@@ -435,7 +435,7 @@ impl JsExec {
     }
 
     /// Run a previously stored script
-    #[hub_macro::hub_method(
+    #[plexus_macros::hub_method(
         description = "Run a previously stored script by ID",
         params(script_id = "ID of the stored script to run")
     )]
@@ -476,7 +476,7 @@ impl JsExec {
     }
 
     /// List all stored scripts
-    #[hub_macro::hub_method(description = "List all stored scripts")]
+    #[plexus_macros::hub_method(description = "List all stored scripts")]
     async fn list_scripts(&self) -> impl Stream<Item = ScriptMetadata> + Send + 'static {
         let scripts = self.scripts.clone();
 
@@ -489,7 +489,7 @@ impl JsExec {
     }
 
     /// Delete a stored script
-    #[hub_macro::hub_method(
+    #[plexus_macros::hub_method(
         description = "Delete a stored script by ID",
         params(script_id = "ID of the script to delete")
     )]

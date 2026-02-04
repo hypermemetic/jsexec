@@ -47,7 +47,7 @@ jsexec/
 │   ├── lib.rs              # Crate entry point, re-exports
 │   ├── types.rs            # JsExecEvent, JsExecConfig, limits, etc.
 │   ├── activation.rs       # JsExec with #[hub_methods] macro
-│   ├── serde_helpers.rs    # Re-export of hub_core serde helpers
+│   ├── serde_helpers.rs    # Re-export of plexus_core serde helpers
 │   ├── pool/
 │   │   ├── mod.rs
 │   │   ├── worker.rs       # Worker struct wrapping workerd process
