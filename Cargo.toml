@@ -10,7 +10,7 @@ name = "jsexec"
 path = "src/lib.rs"
 
 [dependencies]
-# Hub infrastructure
+# Plexus infrastructure
 plexus-core = { path = "../hub-core" }
 plexus-macros = { path = "../hub-macro" }
 
@@ -50,7 +50,7 @@ sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "migrate", "chr
 # Logging
 tracing = "0.1"
 
-# JSON-RPC (required by hub-macro generated code)
+# JSON-RPC (required by plexus-macros generated code)
 jsonrpsee = { version = "0.26", features = ["server", "macros"] }
 
 # Temp files for workerd config

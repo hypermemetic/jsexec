@@ -34,7 +34,7 @@ jsexec/
 ├── src/
 │   ├── lib.rs           # Crate entry, re-exports
 │   ├── types.rs         # JsExecEvent, JsExecConfig, etc.
-│   ├── activation.rs    # JsExec with #[hub_methods] macro
+│   ├── activation.rs    # JsExec with #[plexus_macros::hub_methods] macro
 │   ├── runner.rs        # Ephemeral execution (spawn per request)
 │   └── serde_helpers.rs # Re-export for plexus_macros
 ├── tests/
@@ -122,7 +122,7 @@ cargo test --test integration test_simple_eval
 ## Dependencies
 
 - `workerd` must be in PATH (installed via `npm install -g workerd`)
-- Uses hub-core and hub-macro from the parent substrate project
+- Uses plexus-core and plexus-macros (from hub-core and hub-macro) from the parent substrate project
 
 ## Potential Future Work
 
