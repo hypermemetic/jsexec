@@ -9,7 +9,7 @@ JsExec is a Plexus plugin that executes JavaScript code in sandboxed V8 isolates
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                      JsExec Activation                       │
-│  (Plexus plugin with hub_methods: execute, eval, store...)  │
+│  (Plexus plugin with #[plexus_macros::hub_methods])         │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -46,7 +46,7 @@ jsexec/
 ├── src/
 │   ├── lib.rs              # Crate entry point, re-exports
 │   ├── types.rs            # JsExecEvent, JsExecConfig, limits, etc.
-│   ├── activation.rs       # JsExec with #[hub_methods] macro
+│   ├── activation.rs       # JsExec with #[plexus_macros::hub_methods] macro
 │   ├── serde_helpers.rs    # Re-export of plexus_core serde helpers
 │   ├── pool/
 │   │   ├── mod.rs
@@ -122,7 +122,7 @@ const result = await fn(wrappedConsole, context);
 - ✅ Type definitions (events, configs, limits)
 - ✅ Worker spawning and health checks
 - ✅ Pool manager with concurrency control
-- ✅ Activation with hub_methods macro
+- ✅ Activation with #[plexus_macros::hub_methods] macro
 - ✅ Integration tests compile and run
 - ✅ Workerd starts and responds to /health
 
