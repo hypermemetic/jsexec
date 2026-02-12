@@ -215,6 +215,12 @@ pub enum JsExecEvent {
 
     /// A script has been deleted
     ScriptDeleted { script_id: ScriptId },
+
+    /// Plexus environment setup progress
+    PlexusEnvProgress {
+        stage: String,
+        message: String,
+    },
 }
 
 // =============================================================================
@@ -450,6 +456,15 @@ pub struct JsExecConfig {
     /// Defaults to "tsc" (searches PATH)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tsc_path: Option<std::path::PathBuf>,
+    /// Path to synapse binary (default: auto-discover)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub synapse_path: Option<std::path::PathBuf>,
+    /// Path to hub-codegen binary (default: auto-discover)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hub_codegen_path: Option<std::path::PathBuf>,
+    /// Cache directory for generated Plexus clients (default: ~/.cache/jsexec/plexus/)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub plexus_cache_dir: Option<std::path::PathBuf>,
 }
 
 fn default_true() -> bool {
@@ -467,6 +482,9 @@ impl Default for JsExecConfig {
             local_libraries: Vec::new(),
             esbuild_path: None,
             tsc_path: None,
+            synapse_path: None,
+            hub_codegen_path: None,
+            plexus_cache_dir: None,
         }
     }
 }
