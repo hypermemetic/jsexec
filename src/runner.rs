@@ -58,6 +58,8 @@ pub struct RunnerConfig {
     pub modules: Vec<ModuleConfig>,
     /// Path to node_modules directory for npm package resolution
     pub node_modules_path: Option<PathBuf>,
+    /// Force nodejs_compat flag even without node_modules dir
+    pub force_nodejs_compat: bool,
 }
 
 impl Default for RunnerConfig {
@@ -69,6 +71,7 @@ impl Default for RunnerConfig {
             health_check_delay: Duration::from_millis(100),
             modules: Vec::new(),
             node_modules_path: None,
+            force_nodejs_compat: false,
         }
     }
 }
@@ -211,7 +214,7 @@ pub fn execute(
         }
 
         // Generate workerd config with module entries
-        let has_node_modules = config.node_modules_path.is_some();
+        let has_node_modules = config.node_modules_path.is_some() || config.force_nodejs_compat;
         let workerd_config = generate_workerd_config(port, &resolved_modules, has_node_modules);
         if let Err(e) = tokio::fs::write(&config_path, &workerd_config).await {
             yield JsExecEvent::Error {

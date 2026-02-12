@@ -57,6 +57,10 @@ jsonrpsee = { version = "0.26", features = ["server", "macros"] }
 tempfile = "3"
 regex = "1.12.2"
 
+# Tool discovery and paths
+which = "7"
+dirs = "6"
+
 [dev-dependencies]
 tokio-test = "0.4"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
