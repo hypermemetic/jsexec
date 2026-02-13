@@ -66,7 +66,7 @@ pub async fn discover_tools(config: &JsExecConfig) -> Result<ToolPaths, String> 
     let hub_codegen = find_binary(
         "hub-codegen",
         config.hub_codegen_path.as_deref(),
-        &["~/.cabal/bin"],
+        &["~/.cargo/bin", "~/.plexus/bin"],
     )?;
     let esbuild = find_binary(
         "esbuild",

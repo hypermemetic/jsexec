@@ -168,7 +168,7 @@ impl FunctionRegistry {
                 created_at: now,
                 updated_at: now,
             }),
-            Err(sqlx::Error::Database(db_err)) if db_err.is_unique_violation() => {
+            Err(e) if e.to_string().contains("UNIQUE constraint failed") => {
                 Err(LambdaError::NameAlreadyExists(req.name))
             }
             Err(e) => Err(LambdaError::Database(e)),
@@ -637,7 +637,7 @@ impl FunctionRegistry {
                 created_at: now,
                 updated_at: now,
             }),
-            Err(sqlx::Error::Database(db_err)) if db_err.is_unique_violation() => {
+            Err(e) if e.to_string().contains("UNIQUE constraint failed") => {
                 Err(LambdaError::Internal(format!(
                     "alias '{}' already exists",
                     alias
