@@ -6,6 +6,7 @@
 //! Pipeline: synapse → IR JSON → hub-codegen → TypeScript → esbuild → single .js → workerd module
 
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 
 use crate::types::JsExecConfig;
 
@@ -57,7 +58,10 @@ impl PlexusClientCache {
 }
 
 /// Discover tool binaries: explicit config paths → well-known dirs → PATH
-pub async fn discover_tools(config: &JsExecConfig) -> Result<ToolPaths, String> {
+/// Returns (ToolPaths, duration_ms)
+pub async fn discover_tools(config: &JsExecConfig) -> Result<(ToolPaths, u64), String> {
+    let start = Instant::now();
+
     let synapse = find_binary(
         "synapse",
         config.synapse_path.as_deref(),
@@ -74,11 +78,14 @@ pub async fn discover_tools(config: &JsExecConfig) -> Result<ToolPaths, String> 
         &["~/.cargo/bin", "~/.plexus/bin"],
     )?;
 
-    Ok(ToolPaths {
+    let duration_ms = start.elapsed().as_millis() as u64;
+    tracing::debug!("Tool discovery took {}ms", duration_ms);
+
+    Ok((ToolPaths {
         synapse,
         hub_codegen,
         esbuild,
-    })
+    }, duration_ms))
 }
 
 /// Find a binary: explicit path → well-known directories → PATH via `which`
@@ -120,13 +127,52 @@ fn find_binary(
     which::which(name).map_err(|_| format!("Could not find '{}' binary. Searched: configured paths, {:?}, and PATH", name, well_known_dirs))
 }
 
+/// Get the backend hash quickly without generating full IR (~100ms vs 7.7s)
+/// Returns (backend_hash, duration_ms)
+pub async fn get_backend_hash(
+    synapse: &Path,
+    host: &str,
+    port: u16,
+    backend: &str,
+) -> Result<(String, u64), String> {
+    let start = Instant::now();
+
+    let output = tokio::process::Command::new(synapse)
+        .args(["-H", host, "-P", &port.to_string(), backend, "hash"])
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run synapse: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("synapse backend hash failed: {}", stderr));
+    }
+
+    let hash = String::from_utf8(output.stdout)
+        .map_err(|e| format!("synapse output is not valid UTF-8: {}", e))?
+        .trim()
+        .to_string();
+
+    if hash.is_empty() {
+        return Err("synapse backend hash returned empty string".to_string());
+    }
+
+    let duration_ms = start.elapsed().as_millis() as u64;
+    tracing::debug!("Backend hash lookup took {}ms", duration_ms);
+
+    Ok((hash, duration_ms))
+}
+
 /// Run synapse to get schema IR JSON and extract irHash for cache key
+/// Returns (ir_json, ir_hash, duration_ms)
 pub async fn generate_ir(
     synapse: &Path,
     host: &str,
     port: u16,
     backend: &str,
-) -> Result<(String, String), String> {
+) -> Result<(String, String, u64), String> {
+    let start = Instant::now();
+
     let output = tokio::process::Command::new(synapse)
         .args(["-H", host, "-P", &port.to_string(), "-i", backend])
         .output()
@@ -151,15 +197,21 @@ pub async fn generate_ir(
         .ok_or_else(|| "synapse IR JSON missing 'irHash' field".to_string())?
         .to_string();
 
-    Ok((ir_json, ir_hash))
+    let duration_ms = start.elapsed().as_millis() as u64;
+    tracing::debug!("IR generation took {}ms", duration_ms);
+
+    Ok((ir_json, ir_hash, duration_ms))
 }
 
 /// Run hub-codegen to generate TypeScript from IR
+/// Returns duration_ms
 pub async fn generate_typescript(
     hub_codegen: &Path,
     ir_json: &str,
     output_dir: &Path,
-) -> Result<(), String> {
+) -> Result<u64, String> {
+    let start = Instant::now();
+
     // Write IR to a temp file
     let ir_file = output_dir.join("ir.json");
     tokio::fs::write(&ir_file, ir_json)
@@ -184,11 +236,17 @@ pub async fn generate_typescript(
         return Err(format!("hub-codegen failed: {}", stderr));
     }
 
-    Ok(())
+    let duration_ms = start.elapsed().as_millis() as u64;
+    tracing::debug!("TypeScript generation took {}ms", duration_ms);
+
+    Ok(duration_ms)
 }
 
 /// Bundle generated TypeScript into a single ES module using esbuild
-pub async fn bundle_to_esm(esbuild: &Path, generated_dir: &Path) -> Result<String, String> {
+/// Returns (bundle, duration_ms)
+pub async fn bundle_to_esm(esbuild: &Path, generated_dir: &Path) -> Result<(String, u64), String> {
+    let start = Instant::now();
+
     let entry = generated_dir.join("index.ts");
     if !entry.exists() {
         return Err(format!(
@@ -215,11 +273,19 @@ pub async fn bundle_to_esm(esbuild: &Path, generated_dir: &Path) -> Result<Strin
         return Err(format!("esbuild bundling failed: {}", stderr));
     }
 
-    String::from_utf8(output.stdout)
-        .map_err(|e| format!("esbuild output is not valid UTF-8: {}", e))
+    let bundle = String::from_utf8(output.stdout)
+        .map_err(|e| format!("esbuild output is not valid UTF-8: {}", e))?;
+
+    let duration_ms = start.elapsed().as_millis() as u64;
+    tracing::debug!("Bundling took {}ms", duration_ms);
+
+    Ok((bundle, duration_ms))
 }
 
 /// Full pipeline: discover tools → synapse IR → hub-codegen → esbuild → cached bundle
+/// Optimized flow:
+/// 1. Fast hash check (~100ms) + cache lookup (0ms on hit)
+/// 2. Only generate full IR (7.7s) on cache miss
 pub async fn get_plexus_client_bundle(
     host: &str,
     port: u16,
@@ -227,34 +293,56 @@ pub async fn get_plexus_client_bundle(
     config: &JsExecConfig,
 ) -> Result<(String, BundleSource), String> {
     // 1. Discover tools
-    let tools = discover_tools(config).await?;
+    let (tools, discover_duration) = discover_tools(config).await?;
+    tracing::info!("Tool discovery: {}ms", discover_duration);
 
-    // 2. Generate IR and get hash
-    let (ir_json, ir_hash) = generate_ir(&tools.synapse, host, port, backend).await?;
+    // 2. Get backend hash (fast ~100ms)
+    let (backend_hash, hash_duration) = get_backend_hash(&tools.synapse, host, port, backend).await?;
+    tracing::info!("Backend hash lookup: {}ms", hash_duration);
 
-    // 3. Check cache
+    // 3. Check cache with hash
     let cache_dir = config
         .plexus_cache_dir
         .clone()
         .unwrap_or_else(PlexusClientCache::default_dir);
     let cache = PlexusClientCache::new(cache_dir);
 
-    if let Some(cached) = cache.get(backend, &ir_hash) {
+    if let Some(cached) = cache.get(backend, &backend_hash) {
+        tracing::info!("Cache hit for backend '{}' with hash {}", backend, backend_hash);
         return Ok((cached, BundleSource::CacheHit));
     }
 
-    // 4. Generate TypeScript
+    tracing::info!("Cache miss for backend '{}' with hash {} - generating bundle", backend, backend_hash);
+
+    // 4. Generate full IR (slow ~7.7s, only on cache miss)
+    let (ir_json, ir_hash, ir_duration) = generate_ir(&tools.synapse, host, port, backend).await?;
+    tracing::info!("IR generation: {}ms", ir_duration);
+
+    // Verify that backend hash matches IR hash
+    if backend_hash != ir_hash {
+        tracing::warn!(
+            "Backend hash ({}) differs from IR hash ({}) for backend '{}' - this may indicate a hash mismatch",
+            backend_hash, ir_hash, backend
+        );
+    }
+
+    // 5. Generate TypeScript
     let temp_dir = tempfile::tempdir()
         .map_err(|e| format!("Failed to create temp dir: {}", e))?;
-    generate_typescript(&tools.hub_codegen, &ir_json, temp_dir.path()).await?;
+    let codegen_duration = generate_typescript(&tools.hub_codegen, &ir_json, temp_dir.path()).await?;
+    tracing::info!("TypeScript generation: {}ms", codegen_duration);
 
-    // 5. Bundle to ESM
-    let bundle = bundle_to_esm(&tools.esbuild, temp_dir.path()).await?;
+    // 6. Bundle to ESM
+    let (bundle, bundle_duration) = bundle_to_esm(&tools.esbuild, temp_dir.path()).await?;
+    tracing::info!("ESM bundling: {}ms", bundle_duration);
 
-    // 6. Cache the result
-    if let Err(e) = cache.put(backend, &ir_hash, &bundle) {
+    // 7. Cache the result (use backend_hash as the key)
+    if let Err(e) = cache.put(backend, &backend_hash, &bundle) {
         tracing::warn!("Failed to cache plexus client bundle: {}", e);
     }
+
+    let total_gen_time = ir_duration + codegen_duration + bundle_duration;
+    tracing::info!("Total generation time: {}ms", total_gen_time);
 
     Ok((bundle, BundleSource::Generated))
 }

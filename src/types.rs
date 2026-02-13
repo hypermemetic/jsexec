@@ -220,6 +220,8 @@ pub enum JsExecEvent {
     PlexusEnvProgress {
         stage: String,
         message: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        duration_ms: Option<u64>,
     },
 }
 

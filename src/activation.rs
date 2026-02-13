@@ -533,38 +533,27 @@ impl JsExec {
         let self_clone = self.clone();
 
         stream! {
-            // Stage 1: Discover tools
+            // Track total pipeline time
+            let pipeline_start = std::time::Instant::now();
+
+            // Use the optimized pipeline function that handles tool discovery,
+            // fast hash checking, caching, and conditional IR generation
             yield JsExecEvent::PlexusEnvProgress {
-                stage: "discovering_tools".to_string(),
-                message: "Discovering synapse, hub-codegen, and esbuild binaries".to_string(),
+                stage: "preparing_plexus_client".to_string(),
+                message: format!("Preparing Plexus client for backend '{}' at {}:{}", backend, host, port),
+                duration_ms: None,
             };
 
-            let tools = match crate::plexus_env::discover_tools(&self_clone.config).await {
-                Ok(t) => t,
-                Err(e) => {
-                    yield JsExecEvent::Error {
-                        message: format!("Tool discovery failed: {}", e),
-                        name: "PlexusEnvError".to_string(),
-                        location: None,
-                        stack: vec![],
-                    };
-                    return;
-                }
-            };
-
-            // Stage 2: Generate IR
-            yield JsExecEvent::PlexusEnvProgress {
-                stage: "generating_ir".to_string(),
-                message: format!("Generating IR for backend '{}' at {}:{}", backend, host, port),
-            };
-
-            let (ir_json, ir_hash) = match crate::plexus_env::generate_ir(
-                &tools.synapse, &host, port, &backend,
+            let (bundle, bundle_source) = match crate::plexus_env::get_plexus_client_bundle(
+                &host,
+                port,
+                &backend,
+                &self_clone.config,
             ).await {
-                Ok(r) => r,
+                Ok(result) => result,
                 Err(e) => {
                     yield JsExecEvent::Error {
-                        message: format!("IR generation failed: {}", e),
+                        message: format!("Failed to prepare Plexus client: {}", e),
                         name: "PlexusEnvError".to_string(),
                         location: None,
                         stack: vec![],
@@ -573,77 +562,23 @@ impl JsExec {
                 }
             };
 
-            // Stage 3: Check cache
-            let cache_dir = self_clone.config.plexus_cache_dir.clone()
-                .unwrap_or_else(crate::plexus_env::PlexusClientCache::default_dir);
-            let cache = crate::plexus_env::PlexusClientCache::new(cache_dir);
-
-            let bundle = if let Some(cached) = cache.get(&backend, &ir_hash) {
-                yield JsExecEvent::PlexusEnvProgress {
-                    stage: "cache_hit".to_string(),
-                    message: format!("Using cached bundle for {}_{}", backend, ir_hash),
-                };
-                cached
-            } else {
-                // Stage 4: Generate TypeScript
-                yield JsExecEvent::PlexusEnvProgress {
-                    stage: "generating_code".to_string(),
-                    message: "Running hub-codegen to generate TypeScript client".to_string(),
-                };
-
-                let temp_dir = match tempfile::tempdir() {
-                    Ok(d) => d,
-                    Err(e) => {
-                        yield JsExecEvent::Error {
-                            message: format!("Failed to create temp dir: {}", e),
-                            name: "PlexusEnvError".to_string(),
-                            location: None,
-                            stack: vec![],
-                        };
-                        return;
-                    }
-                };
-
-                if let Err(e) = crate::plexus_env::generate_typescript(
-                    &tools.hub_codegen, &ir_json, temp_dir.path(),
-                ).await {
-                    yield JsExecEvent::Error {
-                        message: format!("Code generation failed: {}", e),
-                        name: "PlexusEnvError".to_string(),
-                        location: None,
-                        stack: vec![],
+            // Emit appropriate progress event based on whether we hit cache or generated
+            match bundle_source {
+                crate::plexus_env::BundleSource::CacheHit => {
+                    yield JsExecEvent::PlexusEnvProgress {
+                        stage: "cache_hit".to_string(),
+                        message: format!("Using cached Plexus client for backend '{}'", backend),
+                        duration_ms: Some(pipeline_start.elapsed().as_millis() as u64),
                     };
-                    return;
                 }
-
-                // Stage 5: Bundle
-                yield JsExecEvent::PlexusEnvProgress {
-                    stage: "bundling".to_string(),
-                    message: "Bundling TypeScript client with esbuild".to_string(),
-                };
-
-                let bundled = match crate::plexus_env::bundle_to_esm(
-                    &tools.esbuild, temp_dir.path(),
-                ).await {
-                    Ok(b) => b,
-                    Err(e) => {
-                        yield JsExecEvent::Error {
-                            message: format!("Bundling failed: {}", e),
-                            name: "PlexusEnvError".to_string(),
-                            location: None,
-                            stack: vec![],
-                        };
-                        return;
-                    }
-                };
-
-                // Cache the result
-                if let Err(e) = cache.put(&backend, &ir_hash, &bundled) {
-                    tracing::warn!("Failed to cache plexus client bundle: {}", e);
+                crate::plexus_env::BundleSource::Generated => {
+                    yield JsExecEvent::PlexusEnvProgress {
+                        stage: "bundle_generated".to_string(),
+                        message: format!("Generated and bundled Plexus client ({} bytes)", bundle.len()),
+                        duration_ms: Some(pipeline_start.elapsed().as_millis() as u64),
+                    };
                 }
-
-                bundled
-            };
+            }
 
             // Build modules: ws shim + plexus client
             let ws_module = crate::types::ModuleConfig::inline(
@@ -675,7 +610,16 @@ impl JsExec {
                 ..self_clone.runner_config.clone()
             };
 
+            // Emit total pipeline timing before execution
+            let pipeline_duration = pipeline_start.elapsed().as_millis() as u64;
+            yield JsExecEvent::PlexusEnvProgress {
+                stage: "pipeline_complete".to_string(),
+                message: format!("Plexus environment ready, starting execution"),
+                duration_ms: Some(pipeline_duration),
+            };
+
             // Execute the user code
+            let execution_start = std::time::Instant::now();
             let mut result_stream = std::pin::pin!(
                 runner::execute(code, context, limits, runner_config)
             );
@@ -684,6 +628,14 @@ impl JsExec {
             while let Some(event) = result_stream.next().await {
                 yield event;
             }
+
+            // Emit total execution time
+            let execution_duration = execution_start.elapsed().as_millis() as u64;
+            yield JsExecEvent::PlexusEnvProgress {
+                stage: "execution_complete".to_string(),
+                message: format!("Execution finished"),
+                duration_ms: Some(execution_duration),
+            };
         }
     }
 }
