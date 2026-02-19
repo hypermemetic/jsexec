@@ -71,13 +71,14 @@ impl HandlerRuntime {
     ///     HashMap::new(),
     /// );
     ///
-    /// let mut stream = runtime.invoke_handler(
+    /// let stream = runtime.invoke_handler(
     ///     code.to_string(),
     ///     "handler".to_string(),
     ///     json!({"name": "World"}),
     ///     context,
     /// );
     ///
+    /// tokio::pin!(stream);
     /// while let Some(event) = stream.next().await {
     ///     println!("Event: {:?}", event);
     /// }

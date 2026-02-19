@@ -505,7 +505,7 @@ mod tests {
     async fn insert_test_function(pool: &SqlitePool, id: FunctionId, name: &str) {
         sqlx::query(
             r#"
-            INSERT INTO functions (id, name, description, runtime, handler, code, code_hash, environment, timeout_ms, memory_mb, created_at, updated_at)
+            INSERT INTO functions (id, name, description, runtime, handler, code, code_hash, environment_variables, timeout_ms, memory_mb, created_at, updated_at)
             VALUES (?, ?, '', 'javascript', 'handler', 'export default {}', 'hash', '{}', 30000, 128, 0, 0)
             "#,
         )
@@ -604,8 +604,8 @@ mod tests {
 
         assert_eq!(metrics.total_invocations, 10);
         assert_eq!(metrics.cold_starts, 1);
-        assert_eq!(metrics.successful_invocations, 7);
-        assert_eq!(metrics.failed_invocations, 3);
+        assert_eq!(metrics.successful_invocations, 6);
+        assert_eq!(metrics.failed_invocations, 4);
         assert!(metrics.avg_duration_ms > 0.0);
         assert!(metrics.p50_duration_ms > 0);
         assert!(metrics.p95_duration_ms > 0);

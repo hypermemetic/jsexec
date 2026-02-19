@@ -15,12 +15,12 @@
 //!
 //! ```rust,no_run
 //! use jsexec::{JsExec, JsExecConfig};
-//! use plexus_core::plexus::Plexus;
+//! use plexus_core::plexus::DynamicHub;
 //! use std::sync::Arc;
 //!
 //! # async fn example() {
 //! let jsexec = JsExec::new(JsExecConfig::default());
-//! let plexus = Arc::new(Plexus::new().register(jsexec));
+//! let hub = Arc::new(DynamicHub::new("substrate").register(jsexec));
 //! # }
 //! ```
 
