@@ -850,7 +850,7 @@ impl JsExec {
     ///
     /// # Example
     /// ```no_run
-    /// # use jsexec::{JsExec, JsExecConfig};
+    /// # use plexus_jsexec::{JsExec, JsExecConfig};
     /// # let jsexec = JsExec::new(JsExecConfig::default());
     /// // Just run the file - all dependencies auto-bundled
     /// jsexec.run_file("./src/my-script.ts");

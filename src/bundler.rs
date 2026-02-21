@@ -84,7 +84,7 @@ impl Default for BundleConfig {
 /// # Example
 /// ```no_run
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// use jsexec::bundler::{bundle_package, BundleConfig};
+/// use plexus_jsexec::bundler::{bundle_package, BundleConfig};
 ///
 /// let config = BundleConfig::default();
 /// let bundled_code = bundle_package("lodash", &config).await?;

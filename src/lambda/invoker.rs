@@ -58,7 +58,7 @@ pub use crate::lambda::types::InvocationType as InvocationMode;
 ///
 /// ```rust,ignore
 /// use std::sync::Arc;
-/// use jsexec::lambda::{FunctionInvoker, FunctionRef, InvocationType};
+/// use plexus_jsexec::lambda::{FunctionInvoker, FunctionRef, InvocationType};
 ///
 /// let invoker = FunctionInvoker::new(
 ///     Arc::new(registry),

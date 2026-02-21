@@ -28,7 +28,7 @@ fn import_pattern() -> &'static Regex {
 /// # Examples
 ///
 /// ```
-/// # use jsexec::import_transform::transform_imports;
+/// # use plexus_jsexec::import_transform::transform_imports;
 /// let code = r#"
 /// import _ from 'lodash';
 /// import * as ts from 'typescript';

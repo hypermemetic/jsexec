@@ -6,7 +6,7 @@
 use std::pin::pin;
 
 use futures_util::StreamExt;
-use jsexec::{JsExec, JsExecConfig, JsExecEvent, ModuleConfig};
+use plexus_jsexec::{JsExec, JsExecConfig, JsExecEvent, ModuleConfig};
 
 /// Check if workerd is available
 fn workerd_available() -> bool {

@@ -14,7 +14,7 @@
 //! # Example
 //!
 //! ```rust,no_run
-//! use jsexec::{JsExec, JsExecConfig};
+//! use plexus_jsexec::{JsExec, JsExecConfig};
 //! use plexus_core::plexus::DynamicHub;
 //! use std::sync::Arc;
 //!

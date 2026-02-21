@@ -52,7 +52,7 @@ impl LambdaSystem {
     ///
     /// # Example
     /// ```rust,no_run
-    /// use jsexec::lambda::{LambdaConfig, LambdaSystem};
+    /// use plexus_jsexec::lambda::{LambdaConfig, LambdaSystem};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let config = LambdaConfig::new("sqlite:lambda.db");

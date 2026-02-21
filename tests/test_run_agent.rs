@@ -2,7 +2,7 @@
 
 use std::pin::pin;
 use futures_util::StreamExt;
-use jsexec::{JsExec, JsExecConfig, JsExecEvent, LocalLibrary};
+use plexus_jsexec::{JsExec, JsExecConfig, JsExecEvent, LocalLibrary};
 
 #[tokio::test]
 async fn test_run_simple_agent_in_jsexec() {

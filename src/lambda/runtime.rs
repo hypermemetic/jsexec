@@ -50,8 +50,8 @@ impl HandlerRuntime {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use jsexec::lambda::{HandlerRuntime, LambdaContext};
-    /// use jsexec::RunnerConfig;
+    /// use plexus_jsexec::lambda::{HandlerRuntime, LambdaContext};
+    /// use plexus_jsexec::RunnerConfig;
     /// use serde_json::json;
     /// use futures_util::StreamExt;
     /// use std::collections::HashMap;

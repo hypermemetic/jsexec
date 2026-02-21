@@ -5,7 +5,7 @@
 
 use std::pin::pin;
 use futures_util::StreamExt;
-use jsexec::{JsExec, JsExecConfig, JsExecEvent};
+use plexus_jsexec::{JsExec, JsExecConfig, JsExecEvent};
 
 #[tokio::test]
 async fn test_run_file_auto_bundle() {

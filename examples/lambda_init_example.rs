@@ -3,7 +3,7 @@
 //! This example demonstrates how to initialize the complete Lambda system
 //! with all components (registry, runtime, invoker, metrics, etc.)
 
-use jsexec::lambda::{LambdaConfig, LambdaSystem};
+use plexus_jsexec::lambda::{LambdaConfig, LambdaSystem};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
