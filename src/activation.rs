@@ -221,7 +221,7 @@ impl JsExec {
 }
 
 /// Plexus-macros generates all the boilerplate for this impl block
-#[plexus_macros::hub_methods(
+#[plexus_macros::activation(
     namespace = "jsexec",
     version = "1.0.0",
     description = "Execute JavaScript in sandboxed V8 isolates",
@@ -229,7 +229,7 @@ impl JsExec {
 )]
 impl JsExec {
     /// Execute JavaScript code and stream results
-    #[plexus_macros::hub_method(
+    #[plexus_macros::method(
         description = "Execute JavaScript code with streaming output",
         params(code = "JavaScript source code to execute")
     )]
@@ -279,7 +279,7 @@ impl JsExec {
     }
 
     /// Execute JavaScript code with additional modules loaded by path
-    #[plexus_macros::hub_method(
+    #[plexus_macros::method(
         description = "Execute JavaScript code with additional modules loaded from file paths",
         params(
             code = "JavaScript source code to execute",
@@ -340,7 +340,7 @@ impl JsExec {
     }
 
     /// Evaluate a JavaScript expression and return the result
-    #[plexus_macros::hub_method(
+    #[plexus_macros::method(
         description = "Evaluate a JavaScript expression and return the result",
         params(expr = "JavaScript expression to evaluate")
     )]
@@ -388,7 +388,7 @@ impl JsExec {
     }
 
     /// Store a script for later execution
-    #[plexus_macros::hub_method(
+    #[plexus_macros::method(
         description = "Store a script for later execution",
         params(
             name = "Human-readable name for the script",
@@ -435,7 +435,7 @@ impl JsExec {
     }
 
     /// Run a previously stored script
-    #[plexus_macros::hub_method(
+    #[plexus_macros::method(
         description = "Run a previously stored script by ID",
         params(script_id = "ID of the stored script to run")
     )]
@@ -476,7 +476,7 @@ impl JsExec {
     }
 
     /// List all stored scripts
-    #[plexus_macros::hub_method(description = "List all stored scripts")]
+    #[plexus_macros::method(description = "List all stored scripts")]
     async fn list_scripts(&self) -> impl Stream<Item = ScriptMetadata> + Send + 'static {
         let scripts = self.scripts.clone();
 
@@ -489,7 +489,7 @@ impl JsExec {
     }
 
     /// Delete a stored script
-    #[plexus_macros::hub_method(
+    #[plexus_macros::method(
         description = "Delete a stored script by ID",
         params(script_id = "ID of the script to delete")
     )]
@@ -514,7 +514,7 @@ impl JsExec {
     }
 
     /// Execute JavaScript with a typed Plexus client for a backend
-    #[plexus_macros::hub_method(
+    #[plexus_macros::method(
         description = "Execute JavaScript with a typed Plexus client for a backend",
         params(
             host = "Plexus backend host",
