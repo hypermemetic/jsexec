@@ -1,6 +1,6 @@
 [package]
 name = "plexus-jsexec"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2021"
 description = "JavaScript execution plugin for Plexus using workerd V8 isolates"
 license = "AGPL-3.0-only"
